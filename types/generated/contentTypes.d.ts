@@ -543,7 +543,17 @@ export interface ApiProjectVideoProjectVideo
       'oneToMany',
       'plugin::mux-video-uploader.mux-asset'
     >;
+    projectsOrder: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      >;
     publishedAt: Schema.Attribute.DateTime;
+    showInArtistPortfolio: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    showInProjects: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -582,7 +592,17 @@ export interface ApiProjectProject extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.Required;
     projectSlug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
+    projectsOrder: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      >;
     publishedAt: Schema.Attribute.DateTime;
+    showInArtistPortfolio: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    showInProjects: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &

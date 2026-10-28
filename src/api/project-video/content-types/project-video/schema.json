@@ -26,6 +26,18 @@
       "relation": "manyToOne",
       "target": "api::director.director",
       "inversedBy": "project_videos"
+    },
+    "showInProjects": {
+      "type": "boolean",
+      "default": false
+    },
+    "projectsOrder": {
+      "type": "integer",
+      "min": 0
+    },
+    "showInArtistPortfolio": {
+      "type": "boolean",
+      "default": true
     }
   }
 }
