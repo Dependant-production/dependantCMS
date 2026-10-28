@@ -42,6 +42,19 @@
       "type": "uid",
       "targetField": "title",
       "required": true
+    },
+    "showInProjects": {
+      "type": "boolean",
+      "default": false
+    },
+    "projectsOrder": {
+      "type": "integer",
+      "default": 0,
+      "min": 0
+    },
+    "showInArtistPortfolio": {
+      "type": "boolean",
+      "default": true
     }
   }
 }
