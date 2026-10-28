@@ -1,3 +1,18 @@
+# Dependant CMS
+
+| Branche   | Environnement  | URL                                      | Dossier sur le VPS                  |
+| --------- | -------------- | ---------------------------------------- | ----------------------------------- |
+| `master`  | Production     | https://cms.dependant.tv/admin           | `/home/ubuntu/dependantCMS`         |
+| `develop` | Préproduction  | https://cms-preprod.dependant.tv/admin   | `/home/ubuntu/dependantCMS-preprod` |
+
+Déployer la préproduction (commit `develop` poussé, Node 22 installé via nvm) :
+
+```bash
+scripts/deploy-preprod.sh
+```
+
+Le script compile le commit en local, l'envoie sur le VPS et redémarre uniquement le processus PM2 `dependant-preprod`. La base, les uploads et `.env.preprod` de la préproduction restent sur le serveur. Le commit déployé est inscrit dans `/home/ubuntu/dependantCMS-preprod/REVISION`.
+
 # 🚀 Getting started with Strapi
 
 Strapi comes with a full featured [Command Line Interface](https://docs.strapi.io/dev-docs/cli) (CLI) which lets you scaffold and manage your project in seconds.
