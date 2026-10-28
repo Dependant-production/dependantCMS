@@ -1,6 +1,28 @@
 import type { StrapiApp } from '@strapi/strapi/admin';
+import { BulletList } from '@strapi/icons';
+
+const readProjects = [
+  'api::project.project',
+  'api::project-video.project-video',
+].map((subject) => ({
+  action: 'plugin::content-manager.explorer.read',
+  subject,
+}));
 
 export default {
+  register(app: Pick<StrapiApp, 'addMenuLink'>) {
+    app.addMenuLink({
+      to: 'projects-overview',
+      icon: BulletList,
+      intlLabel: {
+        id: 'projects-overview.menu',
+        defaultMessage: 'Onglet Projets',
+      },
+      Component: () => import('./pages/ProjectsOverview'),
+      permissions: readProjects,
+    });
+  },
+
   bootstrap(app: Pick<StrapiApp, 'getPlugin'>) {
     const mux = app.getPlugin('mux-video-uploader');
 

@@ -6,29 +6,18 @@
  */
 
 import { factories } from '@strapi/strapi';
-import { withArtistName } from '../../../utils/artist-credit';
+import {
+  findDirectorCredits,
+  withArtistName,
+} from '../../../utils/artist-credit';
 
 export default factories.createCoreController(
   'api::project-video.project-video',
   ({ strapi }) => {
     const addDirectorName = (response: unknown) =>
-      withArtistName(response, 'directorName', async (documentIds) => {
-        // The draft version links to the draft director, the published
-        // version to the published one.
-        const versions = await strapi.db
-          .query('api::project-video.project-video')
-          .findMany({
-            where: { documentId: { $in: documentIds } },
-            select: ['documentId', 'publishedAt'],
-            populate: { director: { select: ['name'] } },
-          });
-
-        return versions.map((version) => ({
-          documentId: version.documentId,
-          name: version.director?.name,
-          published: Boolean(version.publishedAt),
-        }));
-      });
+      withArtistName(response, 'directorName', (documentIds) =>
+        findDirectorCredits(strapi, documentIds),
+      );
 
     return {
       async find(ctx) {
