@@ -549,8 +549,7 @@ export interface ApiProjectVideoProjectVideo
           min: 0;
         },
         number
-      > &
-      Schema.Attribute.DefaultTo<0>;
+      >;
     publishedAt: Schema.Attribute.DateTime;
     showInArtistPortfolio: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     showInProjects: Schema.Attribute.Boolean &
@@ -599,8 +598,7 @@ export interface ApiProjectProject extends Struct.CollectionTypeSchema {
           min: 0;
         },
         number
-      > &
-      Schema.Attribute.DefaultTo<0>;
+      >;
     publishedAt: Schema.Attribute.DateTime;
     showInArtistPortfolio: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     showInProjects: Schema.Attribute.Boolean &
