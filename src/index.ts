@@ -1,10 +1,29 @@
 import type { Core } from '@strapi/strapi';
-import { getProjectsOverview } from './utils/projects-overview';
+import {
+  getProjectsOverview,
+  isCategory,
+  toPlacement,
+  updatePlacement,
+} from './utils/projects-overview';
 
-const readProjects = [
+const projectTypes = [
   'api::project.project',
   'api::project-video.project-video',
-].map((subject) => ['plugin::content-manager.explorer.read', subject]);
+  'api::homepage-video.homepage-video',
+];
+
+const allowed = (action: string) => [
+  'admin::isAuthenticatedAdmin',
+  {
+    name: 'admin::hasPermissions',
+    config: {
+      actions: projectTypes.map((subject) => [
+        `plugin::content-manager.explorer.${action}`,
+        subject,
+      ]),
+    },
+  },
+];
 
 export default {
   /**
@@ -27,15 +46,28 @@ export default {
           },
           // Strapi fills in the route type when registering it.
           info: {},
-          config: {
-            policies: [
-              'admin::isAuthenticatedAdmin',
-              {
-                name: 'admin::hasPermissions',
-                config: { actions: readProjects },
-              },
-            ],
+          config: { policies: allowed('read') },
+        },
+        {
+          method: 'PUT',
+          path: '/projects-overview/:category/:documentId',
+          handler: async (ctx) => {
+            const { category, documentId } = ctx.params;
+            const placement = toPlacement(ctx.request.body);
+            if (!isCategory(category) || !placement) return ctx.badRequest();
+
+            const updated = await updatePlacement(
+              strapi,
+              category,
+              documentId,
+              placement,
+            );
+            if (!updated) return ctx.notFound();
+
+            ctx.body = await getProjectsOverview(strapi);
           },
+          info: {},
+          config: { policies: allowed('update') },
         },
       ],
     });

@@ -39,6 +39,18 @@
     },
     "directorNameBIS": {
       "type": "string"
+    },
+    "projectsSection": {
+      "type": "enumeration",
+      "enum": [
+        "commercials",
+        "music-videos",
+        "photography"
+      ]
+    },
+    "projectsOrder": {
+      "type": "integer",
+      "min": 0
     }
   }
 }

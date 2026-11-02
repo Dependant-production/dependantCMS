@@ -1,10 +1,9 @@
 /**
- * Lists every project of the site's Projects tab in one place for the admin
- * panel (src/admin/pages/ProjectsOverview.tsx), photos and videos together.
- * Mirrors the site's rules (dependant.tv src/helpers/projects.ts): the
- * published version must have showInProjects, a video needs a playable Mux
- * asset, and projects with an order come first, then the others
- * alphabetically.
+ * Lists every photo, video and homepage video in one place for the admin panel
+ * (src/admin/pages/ProjectsOverview.tsx) and saves the section and order chosen
+ * there. Mirrors the site's rules (dependant.tv src/helpers/projects.ts): the
+ * published version must have a section, a video needs a playable Mux asset,
+ * and projects with an order come first, then the others alphabetically.
  */
 
 import type { Core } from '@strapi/strapi';
@@ -14,19 +13,42 @@ import {
   namesByProject,
 } from './artist-credit';
 
-type Category = 'photos' | 'videos';
+const CONTENT_TYPES = {
+  photos: 'api::project.project',
+  videos: 'api::project-video.project-video',
+  homepage: 'api::homepage-video.homepage-video',
+} as const;
+
+type Category = keyof typeof CONTENT_TYPES;
+
+const PROJECT_SECTIONS = [
+  'commercials',
+  'music-videos',
+  'photography',
+] as const;
+
+type ProjectSection = (typeof PROJECT_SECTIONS)[number];
 
 // published: on the site. modified: on the site, with unpublished changes.
-// draft: ticked in the draft only, so the tick is not published yet.
+// draft: in a section in the draft only, so it is not published yet.
 // no-video: published, but the video has no playable Mux asset, so the site
 // skips it.
-export type OverviewState = 'published' | 'modified' | 'draft' | 'no-video';
+// to-classify: ticked with the former showInProjects checkbox, no section yet.
+// hidden: not in the Projects tab.
+export type OverviewState =
+  | 'published'
+  | 'modified'
+  | 'draft'
+  | 'no-video'
+  | 'to-classify'
+  | 'hidden';
 
 export type OverviewRow = {
   documentId: string;
   category: Category;
   title: string;
   creatorName: string;
+  projectsSection: ProjectSection | null;
   projectsOrder: number | null;
   state: OverviewState;
 };
@@ -35,11 +57,15 @@ export type ProjectVersion = {
   documentId: string;
   title?: string | null;
   showInProjects?: boolean | null;
+  directorNameBIS?: string | null;
+  projectsSection?: ProjectSection | null;
   projectsOrder?: number | null;
   publishedAt?: string | Date | null;
   updatedAt?: string | Date | null;
   mux_video_uploader_mux_assets?: { playback_id?: string | null }[] | null;
 };
+
+export type Placement = Pick<OverviewRow, 'projectsSection' | 'projectsOrder'>;
 
 const time = (date?: string | Date | null) =>
   date ? new Date(date).getTime() : 0;
@@ -49,6 +75,10 @@ const toProjectsOrder = (order?: number | null) =>
   order && order > 0 ? order : null;
 
 export function compareRows(a: OverviewRow, b: OverviewRow) {
+  const toClassify =
+    Number(b.state === 'to-classify') - Number(a.state === 'to-classify');
+  if (toClassify) return toClassify;
+
   if (a.projectsOrder !== b.projectsOrder) {
     if (a.projectsOrder === null) return 1;
     if (b.projectsOrder === null) return -1;
@@ -81,7 +111,7 @@ export function toRows(
     let version: ProjectVersion;
     let state: OverviewState;
 
-    if (published?.showInProjects === true) {
+    if (published?.projectsSection) {
       version = published;
       if (
         category === 'videos' &&
@@ -97,11 +127,14 @@ export function toRows(
             ? 'modified'
             : 'published';
       }
-    } else if (draft?.showInProjects === true) {
+    } else if (draft?.projectsSection) {
       version = draft;
       state = 'draft';
     } else {
-      continue;
+      version = draft ?? documentVersions[0];
+      state = documentVersions.some(({ showInProjects }) => showInProjects)
+        ? 'to-classify'
+        : 'hidden';
     }
 
     rows.push({
@@ -109,6 +142,7 @@ export function toRows(
       category,
       title: version.title ?? '',
       creatorName: names.get(documentId) ?? '',
+      projectsSection: version.projectsSection ?? null,
       projectsOrder: toProjectsOrder(version.projectsOrder),
       state,
     });
@@ -117,60 +151,89 @@ export function toRows(
   return rows;
 }
 
-// Every version of the documents ticked in their draft or published version.
-async function findVersions(
+function findVersions(
   strapi: Core.Strapi,
-  uid: 'api::project.project' | 'api::project-video.project-video',
+  category: Category,
+  fields: string[],
   populate?: Record<string, unknown>,
-) {
-  const ticked = await strapi.db.query(uid).findMany({
-    where: { showInProjects: true },
-    select: ['documentId'],
-  });
-  const documentIds: string[] = [
-    ...new Set(ticked.map(({ documentId }) => documentId as string)),
-  ];
-  if (!documentIds.length) return { documentIds, versions: [] };
-
-  const versions: ProjectVersion[] = await strapi.db.query(uid).findMany({
-    where: { documentId: { $in: documentIds } },
+): Promise<ProjectVersion[]> {
+  return strapi.db.query(CONTENT_TYPES[category]).findMany({
     select: [
       'documentId',
       'title',
-      'showInProjects',
+      'projectsSection',
       'projectsOrder',
       'publishedAt',
       'updatedAt',
+      ...fields,
     ],
     populate,
   });
-
-  return { documentIds, versions };
 }
 
+const documentIdsOf = (versions: ProjectVersion[]) => [
+  ...new Set(versions.map(({ documentId }) => documentId)),
+];
+
 export async function getProjectsOverview(strapi: Core.Strapi) {
-  const [photos, videos] = await Promise.all([
-    findVersions(strapi, 'api::project.project'),
-    findVersions(strapi, 'api::project-video.project-video', {
+  const [photos, videos, homepage] = await Promise.all([
+    findVersions(strapi, 'photos', ['showInProjects']),
+    findVersions(strapi, 'videos', ['showInProjects'], {
       mux_video_uploader_mux_assets: { select: ['playback_id'] },
     }),
+    findVersions(strapi, 'homepage', ['directorNameBIS']),
   ]);
-  const [photographers, directors] = await Promise.all([
-    findPhotographerCredits(strapi, photos.documentIds),
-    findDirectorCredits(strapi, videos.documentIds),
+  const [photographers, directors, homepageDirectors] = await Promise.all([
+    findPhotographerCredits(strapi, documentIdsOf(photos)),
+    findDirectorCredits(strapi, documentIdsOf(videos)),
+    findDirectorCredits(strapi, documentIdsOf(homepage), CONTENT_TYPES.homepage),
   ]);
-
-  const rows = [
-    ...toRows('photos', photos.versions, namesByProject(photographers)),
-    ...toRows('videos', videos.versions, namesByProject(directors)),
-  ].sort(compareRows);
+  // Same priority as the homepage: the director, then the free text name.
+  const homepageCredits = [
+    ...homepageDirectors,
+    ...homepage.map(({ documentId, directorNameBIS }) => ({
+      documentId,
+      name: directorNameBIS,
+      published: false,
+    })),
+  ];
 
   return {
-    onSite: rows.filter(
-      ({ state }) => state === 'published' || state === 'modified',
-    ),
-    pending: rows.filter(
-      ({ state }) => state === 'draft' || state === 'no-video',
-    ),
+    rows: [
+      ...toRows('photos', photos, namesByProject(photographers)),
+      ...toRows('videos', videos, namesByProject(directors)),
+      ...toRows('homepage', homepage, namesByProject(homepageCredits)),
+    ].sort(compareRows),
   };
+}
+
+export const isCategory = (value: string): value is Category =>
+  Object.keys(CONTENT_TYPES).includes(value);
+
+export function toPlacement(body: unknown): Placement | null {
+  const { projectsSection, projectsOrder } = (body ?? {}) as Partial<Placement>;
+  const validSection =
+    projectsSection === null || PROJECT_SECTIONS.includes(projectsSection);
+  const validOrder =
+    projectsOrder === null ||
+    (Number.isInteger(projectsOrder) && projectsOrder >= 0);
+
+  return validSection && validOrder ? { projectsSection, projectsOrder } : null;
+}
+
+// Written on the draft and published versions alike, so the choice goes live
+// without publishing other draft changes. updateMany leaves updatedAt alone,
+// so the project keeps its "modified" state.
+export async function updatePlacement(
+  strapi: Core.Strapi,
+  category: Category,
+  documentId: string,
+  placement: Placement,
+) {
+  const { count } = await strapi.db.query(CONTENT_TYPES[category]).updateMany({
+    where: { documentId },
+    data: placement,
+  });
+
+  return count > 0;
 }

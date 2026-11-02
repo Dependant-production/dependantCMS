@@ -91,18 +91,19 @@ export async function findPhotographerCredits(
 export async function findDirectorCredits(
   strapi: Core.Strapi,
   documentIds: string[],
+  uid:
+    | 'api::project-video.project-video'
+    | 'api::homepage-video.homepage-video' = 'api::project-video.project-video',
 ): Promise<ArtistCredit[]> {
   if (!documentIds.length) return [];
 
   // The draft version links to the draft director, the published version to
   // the published one.
-  const versions = await strapi.db
-    .query('api::project-video.project-video')
-    .findMany({
-      where: { documentId: { $in: documentIds } },
-      select: ['documentId', 'publishedAt'],
-      populate: { director: { select: ['name'] } },
-    });
+  const versions = await strapi.db.query(uid).findMany({
+    where: { documentId: { $in: documentIds } },
+    select: ['documentId', 'publishedAt'],
+    populate: { director: { select: ['name'] } },
+  });
 
   return versions.map((version) => ({
     documentId: version.documentId,

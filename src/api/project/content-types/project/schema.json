@@ -11,6 +11,13 @@
     "draftAndPublish": true
   },
   "pluginOptions": {},
+  "config": {
+    "attributes": {
+      "showInProjects": {
+        "hidden": true
+      }
+    }
+  },
   "attributes": {
     "title": {
       "type": "string",
@@ -46,6 +53,14 @@
     "showInProjects": {
       "type": "boolean",
       "default": false
+    },
+    "projectsSection": {
+      "type": "enumeration",
+      "enum": [
+        "commercials",
+        "music-videos",
+        "photography"
+      ]
     },
     "projectsOrder": {
       "type": "integer",
