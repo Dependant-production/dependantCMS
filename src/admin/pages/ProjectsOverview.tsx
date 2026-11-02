@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Layouts, Page, useFetchClient } from '@strapi/strapi/admin';
+import {
+  Layouts,
+  Page,
+  useFetchClient,
+  useNotification,
+} from '@strapi/strapi/admin';
 import {
   Box,
   Flex,
   Link,
+  NumberInput,
+  SingleSelect,
+  SingleSelectOption,
   Status,
   Table,
   Tbody,
@@ -16,56 +24,117 @@ import {
 } from '@strapi/design-system';
 
 // Response of GET /dependant/projects-overview (src/utils/projects-overview.ts).
-type OverviewState = 'published' | 'modified' | 'draft' | 'no-video';
+type OverviewState =
+  | 'published'
+  | 'modified'
+  | 'draft'
+  | 'no-video'
+  | 'to-classify'
+  | 'hidden';
+
+type ProjectSection = 'commercials' | 'music-videos';
 
 type OverviewRow = {
   documentId: string;
-  category: 'photos' | 'videos';
+  category: 'photos' | 'videos' | 'homepage';
   title: string;
   creatorName: string;
+  projectsSection: ProjectSection | null;
   projectsOrder: number | null;
   state: OverviewState;
 };
 
-type Overview = { onSite: OverviewRow[]; pending: OverviewRow[] };
+type Overview = { rows: OverviewRow[] };
+
+type Placement = Pick<OverviewRow, 'projectsSection' | 'projectsOrder'>;
 
 const STATES: Record<
   OverviewState,
-  { label: string; variant: 'success' | 'warning' | 'secondary' | 'danger' }
+  {
+    label: string;
+    variant: 'success' | 'warning' | 'secondary' | 'danger' | 'neutral';
+  }
 > = {
-  published: { label: 'Publié', variant: 'success' },
+  published: { label: 'Sur le site', variant: 'success' },
   modified: { label: 'Modifications non publiées', variant: 'warning' },
   draft: { label: 'À publier', variant: 'secondary' },
   'no-video': { label: 'Vidéo Mux manquante', variant: 'danger' },
+  'to-classify': { label: 'À classer', variant: 'warning' },
+  hidden: { label: 'Non affiché', variant: 'neutral' },
 };
 
 const CONTENT_TYPES = {
   photos: { uid: 'api::project.project', label: 'Photo' },
   videos: { uid: 'api::project-video.project-video', label: 'Vidéo' },
+  homepage: { uid: 'api::homepage-video.homepage-video', label: 'Homepage' },
 };
+
+const HEADERS = ['Titre', 'Type', 'Artiste', 'Section', 'Ordre', 'État', ''];
+
+// The select needs a value for "no section"; the API uses null.
+const NO_SECTION = 'none';
+
+const SECTIONS: {
+  section: ProjectSection | null;
+  title: string;
+  description: string;
+}[] = [
+  {
+    section: 'commercials',
+    title: 'Commercials',
+    description:
+      'Dans l’ordre du site : d’abord les projets qui ont un ordre, puis les autres par ordre alphabétique.',
+  },
+  {
+    section: 'music-videos',
+    title: 'Music videos',
+    description:
+      'Dans l’ordre du site : d’abord les projets qui ont un ordre, puis les autres par ordre alphabétique.',
+  },
+  {
+    section: null,
+    title: 'Hors de l’onglet',
+    description:
+      'Tous les autres projets. « À classer » : projet sélectionné avant la création des sections, à ranger dans l’une d’elles.',
+  },
+];
+
+function OrderInput({
+  row,
+  onSave,
+}: {
+  row: OverviewRow;
+  onSave: (order: number | null) => void;
+}) {
+  const [order, setOrder] = useState(row.projectsOrder ?? undefined);
+
+  useEffect(() => setOrder(row.projectsOrder ?? undefined), [row.projectsOrder]);
+
+  return (
+    <NumberInput
+      aria-label={`Ordre de ${row.title}`}
+      disabled={!row.projectsSection}
+      value={order}
+      onValueChange={setOrder}
+      onBlur={() => {
+        if ((order ?? null) !== row.projectsOrder) onSave(order ?? null);
+      }}
+    />
+  );
+}
 
 function ProjectsTable({
   rows,
-  numbered = false,
+  onSave,
 }: {
   rows: OverviewRow[];
-  numbered?: boolean;
+  onSave: (row: OverviewRow, placement: Placement) => void;
 }) {
-  const headers = [
-    ...(numbered ? ['#'] : []),
-    'Titre',
-    'Type',
-    'Artiste',
-    'Ordre',
-    'État',
-    '',
-  ];
-
   return (
-    <Table colCount={headers.length} rowCount={rows.length + 1}>
+    <Table colCount={HEADERS.length} rowCount={rows.length + 1}>
       <Thead>
         <Tr>
-          {headers.map((header) => (
+          {HEADERS.map((header) => (
             <Th key={header}>
               <Typography variant="sigma">{header}</Typography>
             </Th>
@@ -73,17 +142,12 @@ function ProjectsTable({
         </Tr>
       </Thead>
       <Tbody>
-        {rows.map((row, index) => {
+        {rows.map((row) => {
           const { uid, label } = CONTENT_TYPES[row.category];
           const state = STATES[row.state];
 
           return (
             <Tr key={`${row.category}-${row.documentId}`}>
-              {numbered && (
-                <Td>
-                  <Typography textColor="neutral800">{index + 1}</Typography>
-                </Td>
-              )}
               <Td>
                 <Typography textColor="neutral800" fontWeight="bold">
                   {row.title}
@@ -98,9 +162,41 @@ function ProjectsTable({
                 </Typography>
               </Td>
               <Td>
-                <Typography textColor="neutral800">
-                  {row.projectsOrder ?? '—'}
-                </Typography>
+                <SingleSelect
+                  aria-label={`Section de ${row.title}`}
+                  size="S"
+                  value={row.projectsSection ?? NO_SECTION}
+                  onChange={(value) =>
+                    onSave(row, {
+                      projectsSection:
+                        value === NO_SECTION
+                          ? null
+                          : (value as ProjectSection),
+                      projectsOrder: row.projectsOrder,
+                    })
+                  }
+                >
+                  <SingleSelectOption value={NO_SECTION}>
+                    Hors de l’onglet
+                  </SingleSelectOption>
+                  <SingleSelectOption value="commercials">
+                    Commercials
+                  </SingleSelectOption>
+                  <SingleSelectOption value="music-videos">
+                    Music videos
+                  </SingleSelectOption>
+                </SingleSelect>
+              </Td>
+              <Td>
+                <OrderInput
+                  row={row}
+                  onSave={(projectsOrder) =>
+                    onSave(row, {
+                      projectsSection: row.projectsSection,
+                      projectsOrder,
+                    })
+                  }
+                />
               </Td>
               <Td>
                 <Status variant={state.variant} size="S" width="fit-content">
@@ -152,9 +248,13 @@ function Section({
 }
 
 export default function ProjectsOverview() {
-  const { get } = useFetchClient();
+  const { get, put } = useFetchClient();
+  const { toggleNotification } = useNotification();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [failed, setFailed] = useState(false);
+  // Saves run one after the other, so an older response never replaces a
+  // newer list.
+  const saves = useRef(Promise.resolve());
 
   useEffect(() => {
     get<Overview>('/dependant/projects-overview')
@@ -165,38 +265,51 @@ export default function ProjectsOverview() {
   if (failed) return <Page.Error />;
   if (!overview) return <Page.Loading />;
 
-  const { onSite, pending } = overview;
+  const save = (row: OverviewRow, placement: Placement) => {
+    saves.current = saves.current
+      .then(() =>
+        put<Overview>(
+          `/dependant/projects-overview/${row.category}/${row.documentId}`,
+          placement,
+        ),
+      )
+      .then(({ data }) => setOverview(data))
+      .catch(() =>
+        toggleNotification({
+          type: 'danger',
+          message: `« ${row.title} » n’a pas pu être enregistré.`,
+        }),
+      );
+  };
 
   return (
     <Page.Main>
       <Page.Title>Onglet Projets</Page.Title>
       <Layouts.Header
         title="Onglet Projets"
-        subtitle="Les projets photo et vidéo cochés « showInProjects », dans l’ordre du site."
+        subtitle="Tous les projets : photos, vidéos et vidéos de la homepage. La section et l’ordre choisis ici s’enregistrent tout seuls, et le site suit en une minute environ."
       />
       <Layouts.Content>
         <Flex direction="column" alignItems="stretch" gap={8}>
-          <Section
-            title={`Visibles sur le site (${onSite.length})`}
-            description="D’abord les projets qui ont un ordre (projectsOrder), puis les autres par ordre alphabétique."
-          >
-            {onSite.length ? (
-              <ProjectsTable rows={onSite} numbered />
-            ) : (
-              <Typography textColor="neutral600">
-                Aucun projet n’est visible. Cochez showInProjects sur un projet,
-                puis publiez-le.
-              </Typography>
-            )}
-          </Section>
-          {pending.length > 0 && (
-            <Section
-              title={`Cochés mais pas encore visibles (${pending.length})`}
-              description="Publiez la fiche pour afficher le projet. Une vidéo doit aussi avoir un média Mux prêt."
-            >
-              <ProjectsTable rows={pending} />
-            </Section>
-          )}
+          {SECTIONS.map(({ section, title, description }) => {
+            const rows = overview.rows.filter(
+              ({ projectsSection }) => projectsSection === section,
+            );
+
+            return (
+              <Section
+                key={title}
+                title={`${title} (${rows.length})`}
+                description={description}
+              >
+                {rows.length ? (
+                  <ProjectsTable rows={rows} onSave={save} />
+                ) : (
+                  <Typography textColor="neutral600">Aucun projet.</Typography>
+                )}
+              </Section>
+            );
+          })}
         </Flex>
       </Layouts.Content>
     </Page.Main>

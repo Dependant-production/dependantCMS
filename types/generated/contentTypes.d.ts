@@ -467,6 +467,16 @@ export interface ApiHomepageVideoHomepageVideo
     order: Schema.Attribute.Integer &
       Schema.Attribute.Required &
       Schema.Attribute.DefaultTo<0>;
+    projectsOrder: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      >;
+    projectsSection: Schema.Attribute.Enumeration<
+      ['commercials', 'music-videos']
+    >;
     publishedAt: Schema.Attribute.DateTime;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
@@ -550,8 +560,12 @@ export interface ApiProjectVideoProjectVideo
         },
         number
       >;
+    projectsSection: Schema.Attribute.Enumeration<
+      ['commercials', 'music-videos']
+    >;
     publishedAt: Schema.Attribute.DateTime;
-    showInArtistPortfolio: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    showInArtistPortfolio: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<true>;
     showInProjects: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;
     title: Schema.Attribute.String & Schema.Attribute.Required;
@@ -599,8 +613,12 @@ export interface ApiProjectProject extends Struct.CollectionTypeSchema {
         },
         number
       >;
+    projectsSection: Schema.Attribute.Enumeration<
+      ['commercials', 'music-videos']
+    >;
     publishedAt: Schema.Attribute.DateTime;
-    showInArtistPortfolio: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    showInArtistPortfolio: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<true>;
     showInProjects: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;
     title: Schema.Attribute.String & Schema.Attribute.Required;
