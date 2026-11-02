@@ -21,7 +21,11 @@ const CONTENT_TYPES = {
 
 type Category = keyof typeof CONTENT_TYPES;
 
-const PROJECT_SECTIONS = ['commercials', 'music-videos'] as const;
+const PROJECT_SECTIONS = [
+  'commercials',
+  'music-videos',
+  'photography',
+] as const;
 
 type ProjectSection = (typeof PROJECT_SECTIONS)[number];
 

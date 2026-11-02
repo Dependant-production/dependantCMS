@@ -32,7 +32,7 @@ type OverviewState =
   | 'to-classify'
   | 'hidden';
 
-type ProjectSection = 'commercials' | 'music-videos';
+type ProjectSection = 'commercials' | 'music-videos' | 'photography';
 
 type OverviewRow = {
   documentId: string;
@@ -74,6 +74,9 @@ const HEADERS = ['Titre', 'Type', 'Artiste', 'Section', 'Ordre', 'État', ''];
 // The select needs a value for "no section"; the API uses null.
 const NO_SECTION = 'none';
 
+const SITE_ORDER =
+  'Dans l’ordre du site : d’abord les projets qui ont un ordre, puis les autres par ordre alphabétique.';
+
 const SECTIONS: {
   section: ProjectSection | null;
   title: string;
@@ -82,14 +85,17 @@ const SECTIONS: {
   {
     section: 'commercials',
     title: 'Commercials',
-    description:
-      'Dans l’ordre du site : d’abord les projets qui ont un ordre, puis les autres par ordre alphabétique.',
+    description: SITE_ORDER,
   },
   {
     section: 'music-videos',
     title: 'Music videos',
-    description:
-      'Dans l’ordre du site : d’abord les projets qui ont un ordre, puis les autres par ordre alphabétique.',
+    description: SITE_ORDER,
+  },
+  {
+    section: 'photography',
+    title: 'Photography',
+    description: SITE_ORDER,
   },
   {
     section: null,
@@ -184,6 +190,9 @@ function ProjectsTable({
                   </SingleSelectOption>
                   <SingleSelectOption value="music-videos">
                     Music videos
+                  </SingleSelectOption>
+                  <SingleSelectOption value="photography">
+                    Photography
                   </SingleSelectOption>
                 </SingleSelect>
               </Td>

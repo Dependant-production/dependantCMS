@@ -475,7 +475,7 @@ export interface ApiHomepageVideoHomepageVideo
         number
       >;
     projectsSection: Schema.Attribute.Enumeration<
-      ['commercials', 'music-videos']
+      ['commercials', 'music-videos', 'photography']
     >;
     publishedAt: Schema.Attribute.DateTime;
     title: Schema.Attribute.String & Schema.Attribute.Required;
@@ -561,7 +561,7 @@ export interface ApiProjectVideoProjectVideo
         number
       >;
     projectsSection: Schema.Attribute.Enumeration<
-      ['commercials', 'music-videos']
+      ['commercials', 'music-videos', 'photography']
     >;
     publishedAt: Schema.Attribute.DateTime;
     showInArtistPortfolio: Schema.Attribute.Boolean &
@@ -614,7 +614,7 @@ export interface ApiProjectProject extends Struct.CollectionTypeSchema {
         number
       >;
     projectsSection: Schema.Attribute.Enumeration<
-      ['commercials', 'music-videos']
+      ['commercials', 'music-videos', 'photography']
     >;
     publishedAt: Schema.Attribute.DateTime;
     showInArtistPortfolio: Schema.Attribute.Boolean &

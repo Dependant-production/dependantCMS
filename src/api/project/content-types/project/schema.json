@@ -58,7 +58,8 @@
       "type": "enumeration",
       "enum": [
         "commercials",
-        "music-videos"
+        "music-videos",
+        "photography"
       ]
     },
     "projectsOrder": {
