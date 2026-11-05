@@ -25,6 +25,7 @@ const PROJECT_SECTIONS = [
   'commercials',
   'music-videos',
   'photography',
+  'unscripted',
 ] as const;
 
 type ProjectSection = (typeof PROJECT_SECTIONS)[number];
