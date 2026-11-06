@@ -59,7 +59,8 @@
       "enum": [
         "commercials",
         "music-videos",
-        "photography"
+        "photography",
+        "unscripted"
       ]
     },
     "projectsOrder": {

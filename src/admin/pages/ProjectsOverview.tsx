@@ -32,7 +32,11 @@ type OverviewState =
   | 'to-classify'
   | 'hidden';
 
-type ProjectSection = 'commercials' | 'music-videos' | 'photography';
+type ProjectSection =
+  | 'commercials'
+  | 'music-videos'
+  | 'photography'
+  | 'unscripted';
 
 type OverviewRow = {
   documentId: string;
@@ -95,6 +99,11 @@ const SECTIONS: {
   {
     section: 'photography',
     title: 'Photography',
+    description: SITE_ORDER,
+  },
+  {
+    section: 'unscripted',
+    title: 'Unscripted',
     description: SITE_ORDER,
   },
   {
@@ -193,6 +202,9 @@ function ProjectsTable({
                   </SingleSelectOption>
                   <SingleSelectOption value="photography">
                     Photography
+                  </SingleSelectOption>
+                  <SingleSelectOption value="unscripted">
+                    Unscripted
                   </SingleSelectOption>
                 </SingleSelect>
               </Td>
