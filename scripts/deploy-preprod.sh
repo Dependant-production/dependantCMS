@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # Deploys a commit (default: develop) to the preproduction CMS on the OVH VPS.
+# GitHub Actions runs it on every push to develop
+# (.github/workflows/deploy-preprod.yml); it can also be run from a Mac.
 #
-# The commit is exported with `git archive` and built locally with Node 22, so
-# uncommitted files and the local .env never reach the server. On the VPS only
-# the `dependant-preprod` PM2 process is reloaded; .env.preprod, node_modules
-# and public/uploads are left in place, and production is not touched.
+# The commit is exported with `git archive` and built with Node 22 outside the
+# VPS, so uncommitted files and the local .env never reach the server. The
+# build is installed by scripts/preprod-receive.sh on the VPS, which reloads
+# only the `dependant-preprod` PM2 process; .env.preprod, node_modules and
+# public/uploads are left in place, and production is not touched.
 #
 # Usage: scripts/deploy-preprod.sh [git-ref]
 set -euo pipefail
 
 REF=${1:-develop}
 VPS=${PREPROD_VPS:-ubuntu@51.222.156.38}
-REMOTE_DIR=/home/ubuntu/dependantCMS-preprod
-REMOTE_NODE_DIR=/home/ubuntu/.local/opt/dependant-preprod-node22/bin
+RECEIVE=/home/ubuntu/.local/bin/dependant-preprod-receive
 BUILD_DIR=${PREPROD_BUILD_DIR:-${TMPDIR:-/tmp}/dependantCMS-preprod-build}
 HEALTH_URL=https://cms-preprod.dependant.tv/_health
 
@@ -45,32 +47,19 @@ MUX_UPLOADS_ENABLED=false \
 STRAPI_TELEMETRY_DISABLED=true \
   npm run build
 
-REMOTE_LOCK_SHA=$(ssh "$VPS" "sha256sum $REMOTE_DIR/package-lock.json | cut -d' ' -f1")
-
-echo "Uploading to $VPS:$REMOTE_DIR"
-rsync -az --delete dist/ "$VPS:$REMOTE_DIR/dist/"
-rsync -az --exclude public/uploads \
-  config database public src types \
+# The file list matches SOURCES in scripts/preprod-receive.sh, which refuses an
+# archive missing one of them. COPYFILE_DISABLE and --no-xattrs keep macOS
+# metadata out of the archive.
+echo "Sending to $VPS"
+COPYFILE_DISABLE=1 tar --no-xattrs -czf - --exclude public/uploads \
+  dist config database public src types \
   package.json package-lock.json tsconfig.json favicon.png \
-  ecosystem.preprod.config.cjs .env.preprod.example \
-  "$VPS:$REMOTE_DIR/"
-
-# Linux dependencies are installed on the VPS itself, only when the lockfile
-# changed.
-ssh "$VPS" bash -s <<EOF
-set -euo pipefail
-cd $REMOTE_DIR
-if [ "$REMOTE_LOCK_SHA" != "$LOCK_SHA" ]; then
-  PATH=$REMOTE_NODE_DIR:\$PATH npm ci
-fi
-echo "$COMMIT" > REVISION
-PREPROD_NODE_PATH=$REMOTE_NODE_DIR/node \
-  pm2 startOrReload ecosystem.preprod.config.cjs --only dependant-preprod --update-env
-EOF
+  ecosystem.preprod.config.cjs .env.preprod.example |
+  ssh "$VPS" "$RECEIVE" "$COMMIT"
 
 for _ in $(seq 1 45); do
   if [ "$(curl -s -o /dev/null -w '%{http_code}' "$HEALTH_URL")" = 204 ]; then
-    echo "Preproduction CMS is up on $COMMIT"
+    echo "Preproduction CMS answers on $HEALTH_URL"
     exit 0
   fi
   sleep 2

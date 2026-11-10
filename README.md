@@ -5,13 +5,13 @@
 | `master`  | Production     | https://cms.dependant.tv/admin           | `/home/ubuntu/dependantCMS`         |
 | `develop` | Préproduction  | https://cms-preprod.dependant.tv/admin   | `/home/ubuntu/dependantCMS-preprod` |
 
-Déployer la préproduction (commit `develop` poussé, Node 22 installé via nvm) :
+La préproduction se déploie toute seule à chaque push sur `develop`, avec le workflow GitHub Actions `.github/workflows/deploy-preprod.yml` (onglet **Actions**). Pour redéployer depuis le Mac (Node 22 installé via nvm) :
 
 ```bash
-scripts/deploy-preprod.sh
+scripts/deploy-preprod.sh          # ou scripts/deploy-preprod.sh <commit>
 ```
 
-Le script compile le commit en local, l'envoie sur le VPS et redémarre uniquement le processus PM2 `dependant-preprod`. La base, les uploads et `.env.preprod` de la préproduction restent sur le serveur. Le commit déployé est inscrit dans `/home/ubuntu/dependantCMS-preprod/REVISION`.
+Le script compile le commit hors du VPS et l'envoie à `scripts/preprod-receive.sh`, installé sur le VPS, qui redémarre uniquement le processus PM2 `dependant-preprod`. La base, les uploads et `.env.preprod` de la préproduction restent sur le serveur. Le commit déployé est inscrit dans `/home/ubuntu/dependantCMS-preprod/REVISION`. Détails, clé de déploiement et révocation : `docs/preproduction.md` du dépôt `dependant.tv`.
 
 # 🚀 Getting started with Strapi
 

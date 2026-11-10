@@ -1,0 +1,45 @@
+# Deploys every push to develop to the preproduction CMS
+# (https://cms-preprod.dependant.tv) with scripts/deploy-preprod.sh.
+#
+# The PREPROD_SSH_KEY secret holds a key that the VPS accepts only to run
+# scripts/preprod-receive.sh: it cannot open a shell or reach production.
+name: Deploy preproduction CMS
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+# Deployments queue up rather than overlap.
+concurrency:
+  group: deploy-preprod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Configure SSH
+        env:
+          PREPROD_SSH_KEY: ${{ secrets.PREPROD_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$PREPROD_SSH_KEY" > ~/.ssh/preprod
+          chmod 600 ~/.ssh/preprod
+          # Host key of the VPS, checked against an existing connection.
+          echo '51.222.156.38 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHOOtJr+b6VZ/X/YR/cRXW8FLJL3wH+wC+2BWP4tQ+4s' > ~/.ssh/known_hosts
+          printf 'Host 51.222.156.38\n  IdentityFile ~/.ssh/preprod\n  IdentitiesOnly yes\n' > ~/.ssh/config
+
+      - name: Build and deploy
+        run: PREPROD_BUILD_NODE_DIR="$(dirname "$(command -v node)")" scripts/deploy-preprod.sh "$GITHUB_SHA"
