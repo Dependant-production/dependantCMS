@@ -8,6 +8,7 @@ import {
 } from '@strapi/strapi/admin';
 import {
   Box,
+  Field,
   Flex,
   Link,
   NumberInput,
@@ -48,7 +49,11 @@ type OverviewRow = {
   state: OverviewState;
 };
 
-type Overview = { rows: OverviewRow[] };
+type Overview = {
+  rows: OverviewRow[];
+  // Projects each section shows before its "more" button; null: all of them.
+  beforeMore: Record<ProjectSection, number | null>;
+};
 
 type Placement = Pick<OverviewRow, 'projectsSection' | 'projectsOrder'>;
 
@@ -113,6 +118,41 @@ const SECTIONS: {
       'Tous les autres projets. « À classer » : projet sélectionné avant la création des sections, à ranger dans l’une d’elles.',
   },
 ];
+
+function BeforeMoreInput({
+  title,
+  count,
+  onSave,
+}: {
+  title: string;
+  count: number | null;
+  onSave: (count: number | null) => void;
+}) {
+  const [value, setValue] = useState(count ?? undefined);
+
+  useEffect(() => setValue(count ?? undefined), [count]);
+
+  return (
+    <Field.Root
+      name={`before-more-${title}`}
+      hint="Les suivants s’affichent au clic sur « more ». Vide : tous."
+    >
+      <Field.Label>Projets affichés sur le site</Field.Label>
+      <NumberInput
+        aria-label={`Projets affichés dans ${title} avant « more »`}
+        value={value}
+        onValueChange={setValue}
+        onBlur={() => {
+          // 0 shows every project, like an empty field.
+          const next = value ? value : null;
+          if (next !== count) onSave(next);
+          else setValue(count ?? undefined);
+        }}
+      />
+      <Field.Hint />
+    </Field.Root>
+  );
+}
 
 function OrderInput({
   row,
@@ -245,24 +285,29 @@ function ProjectsTable({
 function Section({
   title,
   description,
+  setting,
   children,
 }: {
   title: string;
   description: string;
+  setting?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <Flex direction="column" alignItems="stretch" gap={3}>
-      <Box>
-        <Typography variant="delta" tag="h2">
-          {title}
-        </Typography>
-        <Box paddingTop={1}>
-          <Typography variant="omega" textColor="neutral600">
-            {description}
+      <Flex justifyContent="space-between" alignItems="flex-end" gap={6}>
+        <Box>
+          <Typography variant="delta" tag="h2">
+            {title}
           </Typography>
+          <Box paddingTop={1}>
+            <Typography variant="omega" textColor="neutral600">
+              {description}
+            </Typography>
+          </Box>
         </Box>
-      </Box>
+        {setting && <Box shrink={0}>{setting}</Box>}
+      </Flex>
       {children}
     </Flex>
   );
@@ -286,29 +331,37 @@ export default function ProjectsOverview() {
   if (failed) return <Page.Error />;
   if (!overview) return <Page.Loading />;
 
-  const save = (row: OverviewRow, placement: Placement) => {
+  const send = (path: string, body: object, failure: string) => {
     saves.current = saves.current
-      .then(() =>
-        put<Overview>(
-          `/dependant/projects-overview/${row.category}/${row.documentId}`,
-          placement,
-        ),
-      )
+      .then(() => put<Overview>(`/dependant/projects-overview/${path}`, body))
       .then(({ data }) => setOverview(data))
-      .catch(() =>
-        toggleNotification({
-          type: 'danger',
-          message: `« ${row.title} » n’a pas pu être enregistré.`,
-        }),
-      );
+      .catch(() => toggleNotification({ type: 'danger', message: failure }));
   };
+
+  const save = (row: OverviewRow, placement: Placement) =>
+    send(
+      `${row.category}/${row.documentId}`,
+      placement,
+      `« ${row.title} » n’a pas pu être enregistré.`,
+    );
+
+  const saveBeforeMore = (
+    section: ProjectSection,
+    title: string,
+    count: number | null,
+  ) =>
+    send(
+      'before-more',
+      { section, count },
+      `Le nombre de projets de ${title} n’a pas pu être enregistré.`,
+    );
 
   return (
     <Page.Main>
       <Page.Title>Onglet Projets</Page.Title>
       <Layouts.Header
         title="Onglet Projets"
-        subtitle="Tous les projets : photos, vidéos et vidéos de la homepage. La section et l’ordre choisis ici s’enregistrent tout seuls, et le site suit en une minute environ."
+        subtitle="Tous les projets : photos, vidéos et vidéos de la homepage. La section, l’ordre et le nombre de projets affichés choisis ici s’enregistrent tout seuls, et le site suit en une minute environ."
       />
       <Layouts.Content>
         <Flex direction="column" alignItems="stretch" gap={8}>
@@ -322,6 +375,15 @@ export default function ProjectsOverview() {
                 key={title}
                 title={`${title} (${rows.length})`}
                 description={description}
+                setting={
+                  section && (
+                    <BeforeMoreInput
+                      title={title}
+                      count={overview.beforeMore[section]}
+                      onSave={(count) => saveBeforeMore(section, title, count)}
+                    />
+                  )
+                }
               >
                 {rows.length ? (
                   <ProjectsTable rows={rows} onSave={save} />
