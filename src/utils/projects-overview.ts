@@ -1,7 +1,8 @@
 /**
  * Lists every photo, video and homepage video in one place for the admin panel
  * (src/admin/pages/ProjectsOverview.tsx) and saves the section and order chosen
- * there. Mirrors the site's rules (dependant.tv src/helpers/projects.ts): the
+ * there, with the number of projects each section shows before its "more"
+ * button. Mirrors the site's rules (dependant.tv src/helpers/projects.ts): the
  * published version must have a section, a video needs a playable Mux asset,
  * and projects with an order come first, then the others alphabetically.
  */
@@ -29,6 +30,19 @@ const PROJECT_SECTIONS = [
 ] as const;
 
 type ProjectSection = (typeof PROJECT_SECTIONS)[number];
+
+// Single type read by the site (src/api/projects-tab).
+const PROJECTS_TAB = 'api::projects-tab.projects-tab';
+
+const BEFORE_MORE_FIELDS = {
+  commercials: 'commercialsBeforeMore',
+  'music-videos': 'musicVideosBeforeMore',
+  photography: 'photographyBeforeMore',
+  unscripted: 'unscriptedBeforeMore',
+} as const satisfies Record<ProjectSection, string>;
+
+// Projects shown in each section before "more"; null shows them all.
+export type BeforeMore = Record<ProjectSection, number | null>;
 
 // published: on the site. modified: on the site, with unpublished changes.
 // draft: in a section in the draft only, so it is not published yet.
@@ -71,9 +85,10 @@ export type Placement = Pick<OverviewRow, 'projectsSection' | 'projectsOrder'>;
 const time = (date?: string | Date | null) =>
   date ? new Date(date).getTime() : 0;
 
-// Empty or 0 (the former default) means the project has no set order.
-const toProjectsOrder = (order?: number | null) =>
-  order && order > 0 ? order : null;
+// Empty or 0 (the former default) means the project has no set order, and a
+// section with no number before "more" shows all its projects.
+const positiveOrNull = (value?: number | null) =>
+  value && value > 0 ? value : null;
 
 export function compareRows(a: OverviewRow, b: OverviewRow) {
   const toClassify =
@@ -144,7 +159,7 @@ export function toRows(
       title: version.title ?? '',
       creatorName: names.get(documentId) ?? '',
       projectsSection: version.projectsSection ?? null,
-      projectsOrder: toProjectsOrder(version.projectsOrder),
+      projectsOrder: positiveOrNull(version.projectsOrder),
       state,
     });
   }
@@ -176,13 +191,25 @@ const documentIdsOf = (versions: ProjectVersion[]) => [
   ...new Set(versions.map(({ documentId }) => documentId)),
 ];
 
+async function getBeforeMore(strapi: Core.Strapi): Promise<BeforeMore> {
+  const projectsTab = await strapi.documents(PROJECTS_TAB).findFirst();
+
+  return Object.fromEntries(
+    PROJECT_SECTIONS.map((section) => [
+      section,
+      positiveOrNull(projectsTab?.[BEFORE_MORE_FIELDS[section]]),
+    ]),
+  ) as BeforeMore;
+}
+
 export async function getProjectsOverview(strapi: Core.Strapi) {
-  const [photos, videos, homepage] = await Promise.all([
+  const [photos, videos, homepage, beforeMore] = await Promise.all([
     findVersions(strapi, 'photos', ['showInProjects']),
     findVersions(strapi, 'videos', ['showInProjects'], {
       mux_video_uploader_mux_assets: { select: ['playback_id'] },
     }),
     findVersions(strapi, 'homepage', ['directorNameBIS']),
+    getBeforeMore(strapi),
   ]);
   const [photographers, directors, homepageDirectors] = await Promise.all([
     findPhotographerCredits(strapi, documentIdsOf(photos)),
@@ -205,6 +232,7 @@ export async function getProjectsOverview(strapi: Core.Strapi) {
       ...toRows('videos', videos, namesByProject(directors)),
       ...toRows('homepage', homepage, namesByProject(homepageCredits)),
     ].sort(compareRows),
+    beforeMore,
   };
 }
 
@@ -237,4 +265,28 @@ export async function updatePlacement(
   });
 
   return count > 0;
+}
+
+export function toBeforeMore(
+  body: unknown,
+): { section: ProjectSection; count: number | null } | null {
+  const { section, count } = (body ?? {}) as {
+    section?: ProjectSection;
+    count?: number | null;
+  };
+  const validSection = PROJECT_SECTIONS.includes(section);
+  const validCount =
+    count === null || (Number.isInteger(count) && count >= 0);
+
+  return validSection && validCount ? { section, count } : null;
+}
+
+// Creates the single type's entry the first time a number is set.
+export async function updateBeforeMore(
+  strapi: Core.Strapi,
+  { section, count }: { section: ProjectSection; count: number | null },
+) {
+  await strapi
+    .service(PROJECTS_TAB)
+    .createOrUpdate({ data: { [BEFORE_MORE_FIELDS[section]]: count } });
 }

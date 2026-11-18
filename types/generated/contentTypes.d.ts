@@ -628,6 +628,62 @@ export interface ApiProjectProject extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiProjectsTabProjectsTab extends Struct.SingleTypeSchema {
+  collectionName: 'projects_tabs';
+  info: {
+    description: 'Number of projects each section of the Projects tab shows before its more button. Empty or 0: all of them.';
+    displayName: 'projectsTab';
+    pluralName: 'projects-tabs';
+    singularName: 'projects-tab';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    commercialsBeforeMore: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      >;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::projects-tab.projects-tab'
+    > &
+      Schema.Attribute.Private;
+    musicVideosBeforeMore: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      >;
+    photographyBeforeMore: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      >;
+    publishedAt: Schema.Attribute.DateTime;
+    unscriptedBeforeMore: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      >;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface PluginContentReleasesRelease
   extends Struct.CollectionTypeSchema {
   collectionName: 'strapi_releases';
@@ -1288,6 +1344,7 @@ declare module '@strapi/strapi' {
       'api::photographer.photographer': ApiPhotographerPhotographer;
       'api::project-video.project-video': ApiProjectVideoProjectVideo;
       'api::project.project': ApiProjectProject;
+      'api::projects-tab.projects-tab': ApiProjectsTabProjectsTab;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

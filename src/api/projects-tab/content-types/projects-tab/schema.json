@@ -1,0 +1,32 @@
+{
+  "kind": "singleType",
+  "collectionName": "projects_tabs",
+  "info": {
+    "singularName": "projects-tab",
+    "pluralName": "projects-tabs",
+    "displayName": "projectsTab",
+    "description": "Number of projects each section of the Projects tab shows before its more button. Empty or 0: all of them."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "commercialsBeforeMore": {
+      "type": "integer",
+      "min": 0
+    },
+    "musicVideosBeforeMore": {
+      "type": "integer",
+      "min": 0
+    },
+    "photographyBeforeMore": {
+      "type": "integer",
+      "min": 0
+    },
+    "unscriptedBeforeMore": {
+      "type": "integer",
+      "min": 0
+    }
+  }
+}

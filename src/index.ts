@@ -2,7 +2,9 @@ import type { Core } from '@strapi/strapi';
 import {
   getProjectsOverview,
   isCategory,
+  toBeforeMore,
   toPlacement,
+  updateBeforeMore,
   updatePlacement,
 } from './utils/projects-overview';
 
@@ -47,6 +49,22 @@ export default {
           // Strapi fills in the route type when registering it.
           info: {},
           config: { policies: allowed('read') },
+        },
+        {
+          // One path segment fewer than the route below, so the two never
+          // match the same request.
+          method: 'PUT',
+          path: '/projects-overview/before-more',
+          handler: async (ctx) => {
+            const beforeMore = toBeforeMore(ctx.request.body);
+            if (!beforeMore) return ctx.badRequest();
+
+            await updateBeforeMore(strapi, beforeMore);
+
+            ctx.body = await getProjectsOverview(strapi);
+          },
+          info: {},
+          config: { policies: allowed('update') },
         },
         {
           method: 'PUT',
